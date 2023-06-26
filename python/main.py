@@ -18,28 +18,29 @@ except ImportError:
 # Replace with your own subscription key and service region (e.g., "westus").
 speech_key, service_region = "YourSubscriptionKey", "YourServiceRegion"
 
-# Specify the path to an audio file containing speech (mono WAV / PCM with a sampling rate of 16
-# kHz).
-filename = "../resources/Lauren_audio.wav"
-
 
 def get_prosody_results_json():
     """Performs pronunciation assessment asynchronously with input from an audio file.
         See more information at https://aka.ms/csspeech/pa"""
 
+    # Specify the path to an audio file containing speech (mono WAV / PCM with a sampling rate of 16 kHz).
+    wave_filename = "../resources/weather_audio.wav"
+    script_filename = "../resources/weather_script.txt"
+    scenario_id = "[scenario ID will be assigned by product team]"
+
     # Creates an instance of a speech config with specified subscription key and service region.
     # Replace with your own subscription key and service region (e.g., "westus").
     # Note: The sample is for en-US language.
     speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
-    audio_config = speechsdk.audio.AudioConfig(filename=filename)
+    audio_config = speechsdk.audio.AudioConfig(filename=wave_filename)
 
-    with open("../resources/Lauren_script.txt", "r") as f:
+    with open(script_filename, "r", encoding="utf-8") as f:
         reference_text = f.read()
     json_string = {
         "GradingSystem": "HundredMark",
         "Granularity": "Phoneme",
         "EnableMiscue": "True",
-        "ScenarioId": "[scenario ID will be assigned by product team]"
+        "ScenarioId": f"{scenario_id}",
     }
     # create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
     pronunciation_config = speechsdk.PronunciationAssessmentConfig(json_string=json.dumps(json_string))
@@ -69,14 +70,18 @@ def get_prosody_results_json():
 def get_content_results_json():
     """Performs pronunciation assessment asynchronously with input from an audio file.
         See more information at https://aka.ms/csspeech/pa"""
-    
+
+    # Specify the path to an audio file containing speech (mono WAV / PCM with a sampling rate of 16 kHz).
+    wave_filename = "../resources/Lauren_audio.wav"
+    topic_filename = "../resources/Lauren_topic.txt"
+
     speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
-    audio_config = speechsdk.audio.AudioConfig(filename=filename)
+    audio_config = speechsdk.audio.AudioConfig(filename=wave_filename)
     speech_recognizer = speechsdk.SpeechRecognizer(
         speech_config=speech_config, audio_config=audio_config, language="en-US")
     connection = speechsdk.Connection.from_recognizer(speech_recognizer)
 
-    with open("../resources/Lauren_topic.txt", "r") as f:
+    with open(topic_filename, "r", encoding="utf-8") as f:
         topic = f.read()
 
     phrase_detection_config = {
@@ -120,8 +125,8 @@ def get_content_results_json():
     # apply the pronunciation assessment configuration to the speech recognizer
     result = speech_recognizer.recognize_once()
     if result.reason == speechsdk.ResultReason.RecognizedSpeech:
-        pronunciation_result_json = result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult)
-        print(pronunciation_result_json)
+        pronunciation_result_json = json.loads(result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult))
+        print(pronunciation_result_json["NBest"][0]["ContentAssessment"])
     else:
         message = f">>> [ERROR] WaveName: {filename}, Reason: {result.reason}"
         raise Exception(message)
