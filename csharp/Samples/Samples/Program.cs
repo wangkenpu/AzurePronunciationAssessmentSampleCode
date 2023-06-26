@@ -34,12 +34,10 @@ namespace Samples
             var speechSubscriptionKey = "YourSubscriptionKey";
             var speechRegion = "YourServiceRegion";
 
-            //var speechConfig = speechsdk.SpeechConfig.FromSubscription("HOST", "SUBSCRIPTION");
             var speechConfig = speechsdk.SpeechConfig.FromSubscription(speechSubscriptionKey, speechRegion);
             var audioConfig = speechsdk.Audio.AudioConfig.FromWavFileInput(wavePath);
             var speechRecognizer = new speechsdk.SpeechRecognizer(speechConfig, language.Replace("_", "-"), audioConfig);
 
-            // speechRecognizer.SessionStarted += (s, e) => Console.WriteLine($"WaveName: {wavePath}, Session ID: {e.SessionId}");
             var connection = speechsdk.Connection.FromRecognizer(speechRecognizer);
 
             var phraseDetectionConfig = new
@@ -69,11 +67,11 @@ namespace Samples
                 {
                     options = new[]
                     {
-                    "WordTimings",
-                    "PronunciationAssessment",
-                    "ContentAssessment",
-                    "SNR"
-                }
+                        "WordTimings",
+                        "PronunciationAssessment",
+                        "ContentAssessment",
+                        "SNR",
+                    }
                 }
             };
             connection.SetMessageProperty("speech.context", "phraseOutput", JsonConvert.SerializeObject(phraseOutputConfig));
