@@ -128,7 +128,7 @@ def get_content_results_json():
         pronunciation_result_json = json.loads(result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult))
         print(pronunciation_result_json["NBest"][0]["ContentAssessment"])
     else:
-        message = f">>> [ERROR] WaveName: {filename}, Reason: {result.reason}"
+        message = f">>> [ERROR] WaveName: {wave_filename}, Reason: {result.reason}"
         raise Exception(message)
 
     # close the connection
