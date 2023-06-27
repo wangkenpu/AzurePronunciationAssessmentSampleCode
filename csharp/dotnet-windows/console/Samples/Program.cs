@@ -12,7 +12,7 @@ namespace Samples
     {
         static void Main(string[] args)
         {
-            string basePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..");
+            string basePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..","..");
             string topic_path = Path.Combine(basePath, "resources", "Lauren_topic.txt");
             string wav_path = Path.Combine(basePath, "resources", "Lauren_audio.wav");
             string language = "en-US";
