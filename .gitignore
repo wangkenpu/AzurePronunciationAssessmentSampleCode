@@ -1,9 +1,5 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
-
-/.vs
-/csharp/Samples/packages
-/csharp/Samples/Samples/bin/
-/csharp/Samples/Samples/obj/
-/csharp/Samples/.vs/Samples/v16
+# csharp
+csharp/Samples/packages/
+csharp/Samples/Samples/bin/
+csharp/Samples/Samples/obj/
+csharp/Samples/.vs/

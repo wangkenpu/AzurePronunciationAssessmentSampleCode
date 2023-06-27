@@ -19,9 +19,11 @@ namespace Samples
             string topic = File.ReadAllText(topic_path);
             if (File.Exists(topic_path))
             {
-                Console.WriteLine("True");
-                string resultJson = Task.Run(() => PronunciationAssessmentContent(wav_path, language, topic)).GetAwaiter().GetResult();
-                Console.WriteLine(resultJson);
+                Console.WriteLine("Starting to do content assessment...");
+                string result = Task.Run(() => PronunciationAssessmentContent(wav_path, language, topic)).GetAwaiter().GetResult();
+                dynamic resultJson = JsonConvert.DeserializeObject(result);
+                Console.WriteLine(resultJson["NBest"][0]["ContentAssessment"]);
+                Console.ReadKey();
             }
 
         }
