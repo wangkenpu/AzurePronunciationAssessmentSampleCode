@@ -1,8 +1,4 @@
 # csharp
-csharp/Samples/packages/
-csharp/Samples/Samples/bin/
-csharp/Samples/Samples/obj/
-csharp/Samples/.vs/
 /csharp/dotnet-windows/console/.vs/Samples/v16
 /csharp/dotnet-windows/console/packages
 /csharp/dotnet-windows/console/Samples/bin/Debug
