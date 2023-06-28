@@ -7,3 +7,7 @@ csharp/Samples/.vs/
 /csharp/dotnet-windows/console/packages
 /csharp/dotnet-windows/console/Samples/bin/Debug
 /csharp/dotnet-windows/console/Samples/obj/Debug
+/csharp/dotnet-windows/console/Samples/packages
+/csharp/dotnet-windows/console/Samples/.vs/Samples/v16
+/csharp/dotnet-windows/console/Samples/Samples/bin/Debug
+/csharp/dotnet-windows/console/Samples/Samples/obj/Debug
