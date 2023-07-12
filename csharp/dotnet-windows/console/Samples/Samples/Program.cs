@@ -108,8 +108,7 @@ namespace Samples
                     Console.WriteLine("PRONUNCIATION ASSESSMENT RESULTS:");
 
                     var pronunciationResultJson = result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
-                    dynamic resultJson = JsonConvert.DeserializeObject(pronunciationResultJson);
-                    Console.WriteLine(resultJson);
+                    Console.WriteLine(pronunciationResultJson);
                 }
                 else if (result.Reason == ResultReason.NoMatch)
                 {
