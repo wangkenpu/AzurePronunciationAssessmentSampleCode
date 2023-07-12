@@ -72,6 +72,7 @@ namespace Samples
             // Creates an instance of a speech config with specified subscription key and service region.
             // Replace with your own subscription key and service region (e.g., "westus").
             var config = SpeechConfig.FromSubscription("YourSubscriptionKey", "YourServiceRegion");
+            string scenario_id = "[scenario ID will be assigned by product team]";
 
             // Replace the language with your language in BCP-47 format, e.g., en-US.
             var language = "en-US";
@@ -80,8 +81,6 @@ namespace Samples
             string scriptPath = Path.Combine(basePath, "resources", "weather_script.txt");
             string wavePath = Path.Combine(basePath, "resources", "weather_audio.wav");
             string referenceText = File.ReadAllText(scriptPath);
-
-            string scenario_id = "[scenario ID will be assigned by product team]";
 
             // Creates an instance of audio config from an audio file
             var audioConfig = AudioConfig.FromWavFileInput(wavePath);
