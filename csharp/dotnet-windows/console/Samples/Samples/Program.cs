@@ -12,11 +12,11 @@ namespace Samples
 {
     class Program
     {
-        private static readonly string choose = " Please choose one of the following samples:";
-        private static readonly string mainPrompt = " Your choice (or 0 to exit): ";
-        private static readonly string exiting = "\n Exiting...";
-        private static readonly string invalid = "\n Invalid input, choose again.";
-        private static readonly string done = "\n Done!";
+        private static readonly string choose = "Please choose one of the following samples:";
+        private static readonly string mainPrompt = "Your choice (or 0 to exit): ";
+        private static readonly string exiting = "\nExiting...";
+        private static readonly string invalid = "\nInvalid input, choose again.";
+        private static readonly string done = "\nDone!";
         static void Main(string[] args)
         {
 
@@ -25,12 +25,12 @@ namespace Samples
             do
             {
                 Console.WriteLine("");
-                Console.WriteLine(" Pronunciation Assessment examples");
+                Console.WriteLine("Pronunciation Assessment examples");
                 Console.WriteLine("");
                 Console.WriteLine(choose);
                 Console.WriteLine("");
-                Console.WriteLine(" 1. Pronunciation Assessment with Content.");
-                Console.WriteLine(" 2. Pronunciation Assessment with Prosody.");
+                Console.WriteLine("1. Pronunciation Assessment with Content.");
+                Console.WriteLine("2. Pronunciation Assessment with Prosody.");
                 Console.WriteLine("");
                 Console.Write(mainPrompt);
 
@@ -72,7 +72,7 @@ namespace Samples
             // Creates an instance of a speech config with specified subscription key and service region.
             // Replace with your own subscription key and service region (e.g., "westus").
             var config = SpeechConfig.FromSubscription("YourSubscriptionKey", "YourServiceRegion");
-            string scenario_id = "[scenario ID will be assigned by product team]";
+            string scenarioId = "[scenario ID will be assigned by product team]";
 
             // Replace the language with your language in BCP-47 format, e.g., en-US.
             var language = "en-US";
@@ -86,8 +86,8 @@ namespace Samples
             var audioConfig = AudioConfig.FromWavFileInput(wavePath);
 
             // create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
-            string json_config = "{\"GradingSystem\":\"HundredMark\",\"Granularity\":\"Phoneme\",\"EnableMiscue\":true, \"ScenarioId\":\""+scenario_id+"\"}";
-            var pronunciationConfig = PronunciationAssessmentConfig.FromJson(json_config);
+            string jsonConfig = "{\"GradingSystem\":\"HundredMark\",\"Granularity\":\"Phoneme\",\"EnableMiscue\":true, \"ScenarioId\":\""+scenarioId+"\"}";
+            var pronunciationConfig = PronunciationAssessmentConfig.FromJson(jsonConfig);
             pronunciationConfig.ReferenceText = referenceText;
 
             // Creates a speech recognizer for the specified language
@@ -199,7 +199,7 @@ namespace Samples
                 }
                 else
                 {
-                    var message = $">>> [ERROR] WaveName: {wavePath}, Reason: {result.Reason}";
+                    var message = $"ERROR: WaveName={wavePath}, Reason={result.Reason}";
                     throw new Exception(message);
                 }
             }
