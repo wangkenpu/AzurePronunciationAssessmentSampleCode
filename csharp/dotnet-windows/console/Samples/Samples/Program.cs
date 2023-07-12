@@ -42,11 +42,11 @@ namespace Samples
                 {
                     case ConsoleKey.D1:
                     case ConsoleKey.NumPad1:
-                        Get_Content_Result().Wait();
+                        GetContentResult().Wait();
                         break;
                     case ConsoleKey.D2:
                     case ConsoleKey.NumPad2:
-                        Get_Prosody_Result().Wait();
+                        GetProsodyResult().Wait();
                         break;
                     case ConsoleKey.D0:
                     case ConsoleKey.NumPad0:
@@ -67,7 +67,7 @@ namespace Samples
 
         // Pronunciation assessment configured with json
         // See more information at https://aka.ms/csspeech/pa
-        public static async Task Get_Prosody_Result()
+        public static async Task GetProsodyResult()
         {
             // Creates an instance of a speech config with specified subscription key and service region.
             // Replace with your own subscription key and service region (e.g., "westus").
@@ -104,13 +104,12 @@ namespace Samples
                 // Checks result.
                 if (result.Reason == ResultReason.RecognizedSpeech)
                 {
-                    Console.WriteLine($"RECOGNIZED: Text={result.Text}");
-                    Console.WriteLine("  PRONUNCIATION ASSESSMENT RESULTS:");
+                    Console.WriteLine($"RECOGNIZED Text: {result.Text}");
+                    Console.WriteLine("PRONUNCIATION ASSESSMENT RESULTS:");
 
                     var pronunciationResultJson = result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
                     dynamic resultJson = JsonConvert.DeserializeObject(pronunciationResultJson);
-                    Console.WriteLine(resultJson["NBest"][0]["PronunciationAssessment"]);
-
+                    Console.WriteLine(resultJson);
                 }
                 else if (result.Reason == ResultReason.NoMatch)
                 {
@@ -132,7 +131,7 @@ namespace Samples
         }
 
 
-        public static async Task Get_Content_Result()
+        public static async Task GetContentResult()
         {
             // Creates an instance of a speech config with specified subscription key and service region.
             // Replace with your own subscription key and service region (e.g., "westus").
@@ -196,9 +195,9 @@ namespace Samples
                 {
                     var pronunciationResultJson = result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
 
+                    Console.WriteLine($"RECOGNIZED TEXT: {result.Text}");
                     dynamic resultJson = JsonConvert.DeserializeObject(pronunciationResultJson);
                     Console.WriteLine(resultJson["NBest"][0]["ContentAssessment"]);
-
                 }
                 else
                 {

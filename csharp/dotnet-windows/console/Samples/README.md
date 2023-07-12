@@ -1,7 +1,7 @@
 # C# Console app for .NET Framework on Windows
 
 This sample demonstrates various forms of speech recognition, intent recognition, and translation using the Speech SDK for C#.
-It runs under the .NET Framework 4.6.1 (or above) on Windows.
+It runs under the .NET Framework 4.7.2 (or above) on Windows.
 
 ## Prerequisites
 
