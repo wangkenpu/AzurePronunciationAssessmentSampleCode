@@ -19,7 +19,7 @@ except ImportError:
 speech_key, service_region = "YourSubscriptionKey", "YourServiceRegion"
 
 
-def get_prosody_results_json():
+def get_assessment_results_with_scenario_id_json():
     """Performs pronunciation assessment asynchronously with input from an audio file.
         See more information at https://aka.ms/csspeech/pa"""
 
@@ -135,9 +135,56 @@ def get_content_results_json():
     connection.close()
 
 
+def get_prosody_results_json():
+    """Performs pronunciation assessment asynchronously with input from an audio file.
+        See more information at https://aka.ms/csspeech/pa"""
+
+    # Specify the path to an audio file containing speech (mono WAV / PCM with a sampling rate of 16 kHz).
+    wave_filename = "../resources/weather_audio.wav"
+    script_filename = "../resources/weather_script.txt"
+
+    # Creates an instance of a speech config with specified subscription key and service region.
+    # Replace with your own subscription key and service region (e.g., "westus").
+    # Note: The sample is for en-US language.
+    speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
+    audio_config = speechsdk.audio.AudioConfig(filename=wave_filename)
+
+    with open(script_filename, "r", encoding="utf-8") as f:
+        reference_text = f.read()
+    json_string = {
+        "GradingSystem": "HundredMark",
+        "Granularity": "Phoneme",
+        "EnableMiscue": "True",
+        "enableProsodyAssessment": "True",
+    }
+    # create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
+    pronunciation_config = speechsdk.PronunciationAssessmentConfig(json_string=json.dumps(json_string))
+    pronunciation_config.reference_text = reference_text
+
+    # Creates a speech recognizer using a file as audio input.
+    language = 'en-US'
+    speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config, language=language, audio_config=audio_config)
+    # apply pronunciation assessment config to speech recognizer
+    pronunciation_config.apply_to(speech_recognizer)
+
+    result = speech_recognizer.recognize_once_async().get()
+
+    # Check the result
+    if result.reason == speechsdk.ResultReason.RecognizedSpeech:
+        pronunciation_result_json = json.loads(result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult))
+        print(pronunciation_result_json)
+    elif result.reason == speechsdk.ResultReason.NoMatch:
+        print("No speech could be recognized")
+    elif result.reason == speechsdk.ResultReason.Canceled:
+        cancellation_details = result.cancellation_details
+        print("Speech Recognition canceled: {}".format(cancellation_details.reason))
+        if cancellation_details.reason == speechsdk.CancellationReason.Error:
+            print("Error details: {}".format(cancellation_details.error_details))
+
+
 if __name__ == "__main__":
     while True:
-        funs = [get_prosody_results_json, get_content_results_json]
+        funs = [get_assessment_results_with_scenario_id_json, get_content_results_json, get_prosody_results_json]
         for idx, fun in enumerate(funs):
             print("{}: {}\n\t{}".format(idx, fun.__name__, fun.__doc__))
         try:
