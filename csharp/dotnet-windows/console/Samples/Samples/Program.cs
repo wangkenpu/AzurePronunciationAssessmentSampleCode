@@ -30,7 +30,7 @@ namespace Samples
                 Console.WriteLine(choose);
                 Console.WriteLine("");
                 Console.WriteLine("1. Pronunciation Assessment with Content.");
-                Console.WriteLine("2. Pronunciation Assessment with Scenario ID.");
+                Console.WriteLine("2. Pronunciation Assessment with Scenario Id.");
                 Console.WriteLine("3. Pronunciation Assessment with Prosody.");
                 Console.WriteLine("");
                 Console.Write(mainPrompt);
@@ -47,7 +47,7 @@ namespace Samples
                         break;
                     case ConsoleKey.D2:
                     case ConsoleKey.NumPad2:
-                        GetAssessmentResultWithScenarioID().Wait();
+                        GetAssessmentResultWithScenarioId().Wait();
                         break;
                     case ConsoleKey.D3:
                     case ConsoleKey.NumPad3:
@@ -72,7 +72,7 @@ namespace Samples
 
         // Pronunciation assessment configured with json
         // See more information at https://aka.ms/csspeech/pa
-        public static async Task GetAssessmentResultWithScenarioID()
+        public static async Task GetAssessmentResultWithScenarioId()
         {
             // Creates an instance of a speech config with specified subscription key and service region.
             // Replace with your own subscription key and service region (e.g., "westus").
@@ -222,9 +222,6 @@ namespace Samples
             // Creates an instance of a speech config with specified subscription key and service region.
             // Replace with your own subscription key and service region (e.g., "westus").
             var config = SpeechConfig.FromSubscription("YourSubscriptionKey", "YourServiceRegion");
-            
-            //set to true to get the prosody value
-            bool enableProsodyAssessment = true;
 
             // Replace the language with your language in BCP-47 format, e.g., en-US.
             var language = "en-US";
@@ -238,7 +235,7 @@ namespace Samples
             var audioConfig = AudioConfig.FromWavFileInput(wavePath);
 
             // create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
-            string jsonConfig = "{\"GradingSystem\":\"HundredMark\",\"Granularity\":\"Phoneme\",\"EnableMiscue\":true, \"enableProsodyAssessment\":\"" + enableProsodyAssessment + "\"}";
+            string jsonConfig = "{\"GradingSystem\":\"HundredMark\",\"Granularity\":\"Phoneme\",\"EnableMiscue\":true, \"enableProsodyAssessment\":\"true\"}";
             var pronunciationConfig = PronunciationAssessmentConfig.FromJson(jsonConfig);
             pronunciationConfig.ReferenceText = referenceText;
 
