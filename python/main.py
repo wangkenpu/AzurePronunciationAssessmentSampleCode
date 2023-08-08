@@ -155,7 +155,7 @@ def get_prosody_results_json():
         "GradingSystem": "HundredMark",
         "Granularity": "Phoneme",
         "EnableMiscue": "True",
-        "enableProsodyAssessment": "True",
+        "EnableProsodyAssessment": "True",
     }
     # create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
     pronunciation_config = speechsdk.PronunciationAssessmentConfig(json_string=json.dumps(json_string))
