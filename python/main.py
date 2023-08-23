@@ -236,17 +236,17 @@ def get_prosody_continuous_results():
 
     def stop_cb(evt):
         """callback that signals to stop continuous recognition upon receiving an event `evt`"""
-        # print("CLOSING on {}".format(evt))
+        print("CLOSING on {}".format(evt))
         nonlocal done
         done = True
 
     def recognized(evt):
-        # print("pronunciation assessment for: {}".format(evt.result.text))
+        print("pronunciation assessment for: {}".format(evt.result.text))
         pronunciation_result = speechsdk.PronunciationAssessmentResult(evt.result)
         print("    Accuracy score: {}, pronunciation score: {}, completeness score : {}, fluency score: {}".format(
             pronunciation_result.accuracy_score, pronunciation_result.pronunciation_score,
             pronunciation_result.completeness_score, pronunciation_result.fluency_score
-        ))
+        ), end="")
         nonlocal recognized_words, prosody_scores, fluency_scores, durations
         recognized_words += pronunciation_result.words
         fluency_scores.append(pronunciation_result.fluency_score)
@@ -254,7 +254,11 @@ def get_prosody_continuous_results():
         jo = json.loads(json_result)
         nb = jo["NBest"][0]
         if "ProsodyScore" in nb["PronunciationAssessment"]:
-            prosody_scores.append(nb["PronunciationAssessment"]["ProsodyScore"])
+            prosody_score = nb["PronunciationAssessment"]["ProsodyScore"]
+            prosody_scores.append(prosody_score)
+            print(", prosody score: {}".format(prosody_score))
+        else:
+            print()
         durations.append(sum([int(w["Duration"]) for w in nb["Words"]]))
 
     # Connect callbacks to the events fired by the speech recognizer
