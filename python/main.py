@@ -329,7 +329,7 @@ def get_prosody_continuous_results():
     if len(prosody_scores) == 0:
         prosody_score = float("nan")
     else:
-        prosody_score = sum(prosody_scores) / len(durations)
+        prosody_score = sum(prosody_scores) / len(prosody_scores)
 
     # Re-calculate fluency score
     fluency_score = sum([x * y for (x, y) in zip(fluency_scores, durations)]) / sum(durations)
