@@ -13,6 +13,10 @@ namespace Samples
 {
     class Program
     {
+        // Replace with your own subscription key and service region (e.g., "westus").
+        private const string ServiceSubscriptionKey = "YourSubscriptionKey";
+        private const string ServiceRegion = "YourServiceRegion";
+
         private static readonly string choose = "Please choose one of the following samples:";
         private static readonly string mainPrompt = "Your choice (or 0 to exit): ";
         private static readonly string exiting = "\nExiting...";
@@ -30,9 +34,8 @@ namespace Samples
                 Console.WriteLine("");
                 Console.WriteLine(choose);
                 Console.WriteLine("");
-                Console.WriteLine("1. Pronunciation Assessment with Content.");
-                Console.WriteLine("2. Pronunciation Assessment with Scenario ID.");
-                Console.WriteLine("3. Pronunciation Assessment with Prosody.");
+                Console.WriteLine("1. Pronunciation Assessment with Json configure.");
+                Console.WriteLine("2. Pronunciation Assessment with Content Score.");
                 Console.WriteLine("");
                 Console.Write(mainPrompt);
 
@@ -44,15 +47,11 @@ namespace Samples
                 {
                     case ConsoleKey.D1:
                     case ConsoleKey.NumPad1:
-                        GetContentResult().Wait();
+                        GetAssessmentResultWithJsonConfig().Wait();
                         break;
                     case ConsoleKey.D2:
                     case ConsoleKey.NumPad2:
-                        GetAssessmentResultWithScenarioId().Wait();
-                        break;
-                    case ConsoleKey.D3:
-                    case ConsoleKey.NumPad3:
-                        GetProsodyResult().Wait();
+                        GetContentResult().Wait();
                         break;
                     case ConsoleKey.D0:
                     case ConsoleKey.NumPad0:
@@ -73,12 +72,11 @@ namespace Samples
 
         // Pronunciation assessment configured with json
         // See more information at https://aka.ms/csspeech/pa
-        public static async Task GetAssessmentResultWithScenarioId()
+        public static async Task GetAssessmentResultWithJsonConfig()
         {
             // Creates an instance of a speech config with specified subscription key and service region.
             // Replace with your own subscription key and service region (e.g., "westus").
-            var config = SpeechConfig.FromSubscription("YourSubscriptionKey", "YourServiceRegion");
-            string scenarioId = "[scenario ID will be assigned by product team]";
+            var config = SpeechConfig.FromSubscription(ServiceSubscriptionKey, ServiceRegion);
 
             // Replace the language with your language in BCP-47 format, e.g., en-US.
             var language = "en-US";
@@ -91,8 +89,11 @@ namespace Samples
             // Creates an instance of audio config from an audio file
             var audioConfig = AudioConfig.FromWavFileInput(wavePath);
 
-            // create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
-            string jsonConfig = "{\"GradingSystem\":\"HundredMark\",\"Granularity\":\"Phoneme\",\"EnableMiscue\":true, \"ScenarioId\":\""+scenarioId+"\"}";
+            // Create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
+            var enableMiscue = true;
+            var enableProsodyAssessment = true;
+            string scenarioId = "";  // # scenario ID will be assigned by product team, by default it is empty string.
+            string jsonConfig = "{\"GradingSystem\":\"HundredMark\",\"Granularity\":\"Phoneme\",\"EnableMiscue\":\"" + enableMiscue + "\", \"EnableProsodyAssessment\":\"" + enableProsodyAssessment + "\", \"ScenarioId\":\"" + scenarioId + "\"}";
             var pronunciationConfig = PronunciationAssessmentConfig.FromJson(jsonConfig);
             pronunciationConfig.ReferenceText = referenceText;
 
@@ -139,7 +140,7 @@ namespace Samples
         {
             // Creates an instance of a speech config with specified subscription key and service region.
             // Replace with your own subscription key and service region (e.g., "westus").
-            var config = SpeechConfig.FromSubscription("YourSubscriptionKey", "YourServiceRegion");
+            var config = SpeechConfig.FromSubscription(ServiceSubscriptionKey, ServiceRegion);
 
             string basePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..");
             string topicPath = Path.Combine(basePath, "resources", "Lauren_topic.txt");
@@ -222,68 +223,6 @@ namespace Samples
 
             Console.WriteLine("PRONUNCIATION CONTENT ASSESSMENT RESULTS:");
             Console.WriteLine(jsonResults[jsonResults.Count - 1]["NBest"][0]["ContentAssessment"]);
-        }
-
-        // Pronunciation assessment with EnableProsodyAssessment
-        // See more information at https://aka.ms/csspeech/pa
-        public static async Task GetProsodyResult()
-        {
-            // Creates an instance of a speech config with specified subscription key and service region.
-            // Replace with your own subscription key and service region (e.g., "westus").
-            var config = SpeechConfig.FromSubscription("YourSubscriptionKey", "YourServiceRegion");
-
-            // Replace the language with your language in BCP-47 format, e.g., en-US.
-            var language = "en-US";
-
-            string basePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..");
-            string scriptPath = Path.Combine(basePath, "resources", "weather_script.txt");
-            string wavePath = Path.Combine(basePath, "resources", "weather_audio.wav");
-            string referenceText = File.ReadAllText(scriptPath);
-
-            // Creates an instance of audio config from an audio file
-            var audioConfig = AudioConfig.FromWavFileInput(wavePath);
-
-            // create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
-            string jsonConfig = "{\"GradingSystem\":\"HundredMark\",\"Granularity\":\"Phoneme\",\"EnableMiscue\":true, \"EnableProsodyAssessment\":\"true\"}";
-            var pronunciationConfig = PronunciationAssessmentConfig.FromJson(jsonConfig);
-            pronunciationConfig.ReferenceText = referenceText;
-
-            // Creates a speech recognizer for the specified language
-            using (var recognizer = new SpeechRecognizer(config, language, audioConfig))
-            {
-                // Starts recognizing.
-                pronunciationConfig.ApplyTo(recognizer);
-
-                // Starts speech recognition, and returns after a single utterance is recognized.
-                // For long-running multi-utterance recognition, use StartContinuousRecognitionAsync() instead.
-                var result = await recognizer.RecognizeOnceAsync();
-
-                // Checks result.
-                if (result.Reason == ResultReason.RecognizedSpeech)
-                {
-                    Console.WriteLine($"RECOGNIZED Text: {result.Text}");
-                    Console.WriteLine("PRONUNCIATION ASSESSMENT RESULTS:");
-
-                    var pronunciationResultJson = result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
-                    Console.WriteLine(pronunciationResultJson);
-                }
-                else if (result.Reason == ResultReason.NoMatch)
-                {
-                    Console.WriteLine($"NOMATCH: Speech could not be recognized.");
-                }
-                else if (result.Reason == ResultReason.Canceled)
-                {
-                    var cancellation = CancellationDetails.FromResult(result);
-                    Console.WriteLine($"CANCELED: Reason={cancellation.Reason}");
-
-                    if (cancellation.Reason == CancellationReason.Error)
-                    {
-                        Console.WriteLine($"CANCELED: ErrorCode={cancellation.ErrorCode}");
-                        Console.WriteLine($"CANCELED: ErrorDetails={cancellation.ErrorDetails}");
-                        Console.WriteLine($"CANCELED: Did you update the subscription info?");
-                    }
-                }
-            }
         }
     }
 }
