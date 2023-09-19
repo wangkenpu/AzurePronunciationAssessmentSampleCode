@@ -4,11 +4,12 @@ var fs = require("fs");
 
 
 function main () {
-    var topic = "Describe someone you met recently and would like to know more";
+    const topicFile = "../resources/Lauren_topic.txt";
     const filename = "../resources/Lauren_audio.wav";
     const subscriptionKey = "YourSubscriptionKey";
     const serviceRegion = "YourServiceRegion";
 
+    var topic = fs.readFileSync(topicFile, "utf8");
     var audioConfig = sdk.AudioConfig.fromWavFileInput(fs.readFileSync(filename));
     var speechConfig = sdk.SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
 
