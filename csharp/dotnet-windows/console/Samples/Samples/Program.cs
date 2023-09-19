@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
@@ -187,32 +188,40 @@ namespace Samples
             };
             connection.SetMessageProperty("speech.context", "phraseOutput", JsonConvert.SerializeObject(phraseOutputConfig));
 
-            // open the connection
-            connection.Open(forContinuousRecognition: false);
+            var jsonResults = new List<dynamic>();
+            var done = false;
 
-            try
-            {
-                // apply the pronunciation assessment configuration to the speech recognizer
-                var result = await speechRecognizer.RecognizeOnceAsync();
-                if (result.Reason == ResultReason.RecognizedSpeech)
-                {
-                    var pronunciationResultJson = result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
+            speechRecognizer.SessionStopped += (s, e) => {
+                Console.WriteLine("ClOSING on {0}", e);
+                done = true;
+            };
 
-                    Console.WriteLine($"RECOGNIZED TEXT: {result.Text}");
-                    dynamic resultJson = JsonConvert.DeserializeObject(pronunciationResultJson);
-                    Console.WriteLine(resultJson["NBest"][0]["ContentAssessment"]);
-                }
-                else
-                {
-                    var message = $"ERROR: WaveName={wavePath}, Reason={result.Reason}";
-                    throw new Exception(message);
-                }
-            }
-            finally
+            speechRecognizer.Canceled += (s, e) => {
+                Console.WriteLine("ClOSING on {0}", e);
+                done = true;
+            };
+
+            speechRecognizer.Recognized += (s, e) =>
             {
-                // close the connection
-                connection.Close();
+                var pronunciationResultJson = e.Result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
+                dynamic resultJson = JsonConvert.DeserializeObject(pronunciationResultJson);
+                jsonResults.Add(resultJson);
+            };
+
+            // Starts continuous recognition.
+            await speechRecognizer.StartContinuousRecognitionAsync().ConfigureAwait(false);
+
+            while (!done)
+            {
+                // Allow the program to run and process results continuously.
+                await Task.Delay(1000); // Adjust the delay as needed.
             }
+
+            // Waits for completion.
+            await speechRecognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
+
+            Console.WriteLine("PRONUNCIATION CONTENT ASSESSMENT RESULTS:");
+            Console.WriteLine(jsonResults[jsonResults.Count - 1]["NBest"][0]["ContentAssessment"]);
         }
 
         // Pronunciation assessment with EnableProsodyAssessment
