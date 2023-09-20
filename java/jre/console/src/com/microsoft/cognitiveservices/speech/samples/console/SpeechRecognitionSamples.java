@@ -19,6 +19,7 @@ import jakarta.json.JsonReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.charset.StandardCharsets;
 
 // <toplevel>
 import com.microsoft.cognitiveservices.speech.*;
@@ -45,7 +46,8 @@ public class SpeechRecognitionSamples {
         //wavePath
         Path wavePath = basePath.resolve("resources").resolve("Lauren_audio.wav");
         
-        String topic = Files.readString(topicPath);
+        byte[] bytes = Files.readAllBytes(topicPath);
+        String topic = new String(bytes, StandardCharsets.UTF_8);
         
         //provide a WAV file as an example. Replace it with your own.
         AudioConfig audioConfig = AudioConfig.fromWavFileInput(wavePath.toString());
