@@ -13,13 +13,17 @@ public class Main {
     public static void main(String[] args) {
         String prompt = "Your choice (0: Stop): ";
 
-        System.out.println(" 1. Get the content of pronunciation assessment.");
-
-        System.out.print(prompt);
-
         try {
             String x;
             do {
+                System.out.println("");
+                System.out.println("Pronunciation Assessment examples");
+                System.out.println("");
+                System.out.println("Please choose one of the following samples:");
+                System.out.println("1. Get the content of pronunciation assessment.");
+                System.out.println("");
+                System.out.print(prompt);
+
                 x = new Scanner(System.in).nextLine();
                 System.out.println("");
                 switch (x.toLowerCase()) {
@@ -30,7 +34,6 @@ public class Main {
                     System.out.println("Exiting...");
                     break;
                 }
-                System.out.println("\nExecution done. " + prompt);
             } while (!x.equals("0"));
 
             System.out.println("Finishing demo.");

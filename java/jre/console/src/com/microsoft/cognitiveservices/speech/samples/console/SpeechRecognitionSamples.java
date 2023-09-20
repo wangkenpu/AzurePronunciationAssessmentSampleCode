@@ -21,28 +21,28 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.charset.StandardCharsets;
 
-// <toplevel>
 import com.microsoft.cognitiveservices.speech.*;
 import com.microsoft.cognitiveservices.speech.audio.*;
-// </toplevel>
+
+
 public class SpeechRecognitionSamples {
-	// Replace with your own subscription key and service region (e.g., "westus").
-	static String serviceSubscriptionKey = "YourSubscriptionKey";
-	static String serviceRegion = "YourServiceRegion";
+    // Replace with your own subscription key and service region (e.g., "westus").
+    static final String serviceSubscriptionKey = "YourSubscriptionKey";
+    static final String serviceRegion = "YourServiceRegion";
 
     // Speech recognition from microphone.
     public static void recognitionContentContinuous() throws InterruptedException, ExecutionException, IOException 
     {
-        // Creates an instance of a speech config with specified subscription key and service region.
+        // Creates an instance of a speech configure with specified subscription key and service region.
         SpeechConfig speechConfig = SpeechConfig.fromSubscription(serviceSubscriptionKey, serviceRegion);
 
         String language = "en-US";
         
-        Path currentDirectory = Paths.get(System.getProperty("user.dir"));      
+        Path currentDirectory = Paths.get(System.getProperty("user.dir"));
         //basePath
-        Path basePath = currentDirectory.resolve("..").resolve("..").resolve("..");       
+        Path basePath = currentDirectory.resolve("..").resolve("..").resolve("..");
         //topicPath
-        Path topicPath = basePath.resolve("resources").resolve("Lauren_topic.txt");      
+        Path topicPath = basePath.resolve("resources").resolve("Lauren_topic.txt");
         //wavePath
         Path wavePath = basePath.resolve("resources").resolve("Lauren_audio.wav");
         
@@ -60,42 +60,46 @@ public class SpeechRecognitionSamples {
         connect.setMessageProperty("speech.context", "phraseOutput", "{\"format\":\"Detailed\",\"detailed\":{\"options\":[\"WordTimings\",\"PronunciationAssessment\",\"ContentAssessment\",\"SNR\"]}}");
 
         List<String> jsonResults = new ArrayList<>();
+        List<String> recognizedResults = new ArrayList<>();
         // Semaphore used to signal the call to stop continuous recognition (following either a session ended or a cancelled event)
         final Semaphore doneSemaphone = new Semaphore(0);
 
         // Subscribes to events.
         speechRecognizer.recognized.addEventListener((s, e) -> {
             if (e.getResult().getReason() == ResultReason.RecognizedSpeech) {
-                System.out.println(" RECOGNIZED: Text = " + e.getResult().getText());
+                String recognizingText = e.getResult().getText();
+                 if (!recognizingText.trim().equals(".")) {
+                    System.out.println("RECOGNIZING: " + recognizingText);
+                    recognizedResults.add(recognizingText);
+                }
                 String jString = e.getResult().getProperties().getProperty(PropertyId.SpeechServiceResponse_JsonResult);
                 jsonResults.add(jString);
             }
             else if (e.getResult().getReason() == ResultReason.NoMatch) {
-            	System.out.println(" NOMATCH: Speech could not be recognized.");               
+                System.out.println("NOMATCH: Speech could not be recognized.");
             }
         });
 
         speechRecognizer.canceled.addEventListener((s, e) -> {
-            System.out.println(" CANCELED: Reason = " + e.getReason());
+            System.out.println("CANCELED: Reason = " + e.getReason());
             if (e.getReason() == CancellationReason.Error) {
-                System.out.println(" CANCELED: ErrorCode = " + e.getErrorCode());
-                System.out.println(" CANCELED: ErrorDetails = " + e.getErrorDetails());
-                System.out.println(" CANCELED: Did you update the subscription info?");
+                System.out.println("CANCELED: ErrorCode = " + e.getErrorCode());
+                System.out.println("CANCELED: ErrorDetails = " + e.getErrorDetails());
+                System.out.println("CANCELED: Did you update the subscription info?");
             }
             doneSemaphone.release();
         });
 
         speechRecognizer.sessionStarted.addEventListener((s, e) -> {
-            System.out.println("\n Session started event.");
+            System.out.println("Session started event.");
         });
 
         speechRecognizer.sessionStopped.addEventListener((s, e) -> {
-            System.out.println("\n Session stopped event.");
+            System.out.println("Session stopped event.");
             doneSemaphone.release();
         });
 
         // Starts continuous recognition and wait for processing to end
-        System.out.println(" Recognizing from WAV file... please wait");
         speechRecognizer.startContinuousRecognitionAsync().get();
         doneSemaphone.tryAcquire(30, TimeUnit.SECONDS);
 
@@ -106,7 +110,7 @@ public class SpeechRecognitionSamples {
         speechRecognizer.close();
         speechConfig.close();
         audioConfig.close();
-        
+
         String theLast = jsonResults.get(jsonResults.size() - 1);
         // Convert the JSON string to a JSON object
         JsonReader jsonReader = Json.createReader(new StringReader(theLast));
@@ -116,8 +120,7 @@ public class SpeechRecognitionSamples {
         String contentAssessment = firstElement.getJsonObject("ContentAssessment").toString();
         jsonReader.close();
         
-        System.out.println("PRONUNCIATION CONTENT ASSESSMENT RESULTS:");
-        System.out.println(contentAssessment);
-        
+        System.out.println("RECOGNIZED: " + String.join(" ", recognizedResults));
+        System.out.println("PRONUNCIATION CONTENT ASSESSMENT RESULTS: " + contentAssessment);
     }
 }
