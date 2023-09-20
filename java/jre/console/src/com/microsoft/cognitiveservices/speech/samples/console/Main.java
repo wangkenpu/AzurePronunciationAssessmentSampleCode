@@ -13,7 +13,7 @@ public class Main {
     public static void main(String[] args) {
         String prompt = "Your choice (0: Stop): ";
 
-        System.out.println(" 1. Get the cotent of pronunciaiton assessment.");
+        System.out.println(" 1. Get the content of pronunciation assessment.");
 
         System.out.print(prompt);
 

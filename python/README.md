@@ -1,6 +1,6 @@
 # Python console app
 
-This sample demonstrates various forms of pronunciation assessment and content assessment using the Speech SDK for Python.
+This sample demonstrates various forms of pronunciation assessment using the Speech SDK for Python.
 
 ## Prerequisites
 
