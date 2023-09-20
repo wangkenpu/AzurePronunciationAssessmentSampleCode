@@ -25,8 +25,6 @@ import java.nio.charset.StandardCharsets;
 import com.microsoft.cognitiveservices.speech.*;
 import com.microsoft.cognitiveservices.speech.audio.*;
 // </toplevel>
-
-//@SuppressWarnings("resource") // scanner
 public class SpeechRecognitionSamples {
 	// Replace with your own subscription key and service region (e.g., "westus").
 	static String serviceSubscriptionKey = "YourSubscriptionKey";

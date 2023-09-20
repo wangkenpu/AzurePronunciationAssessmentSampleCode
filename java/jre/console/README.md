@@ -31,6 +31,7 @@ This sample demonstrates various forms of pronunciation assessment using the Spe
 
 <small><a name="footnote1">1</a>. This sample has not been verified with Eclipse on ARM platforms.</small>
 
+
 ## Build the sample
 
 * **By building this sample you will download the Microsoft Cognitive Services Speech SDK. By downloading you acknowledge its license, see [Speech SDK license agreement](https://aka.ms/csspeech/license).**
