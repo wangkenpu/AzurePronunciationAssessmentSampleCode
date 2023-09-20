@@ -28,13 +28,15 @@ import com.microsoft.cognitiveservices.speech.audio.*;
 
 //@SuppressWarnings("resource") // scanner
 public class SpeechRecognitionSamples {
+	// Replace with your own subscription key and service region (e.g., "westus").
+	static String serviceSubscriptionKey = "YourSubscriptionKey";
+	static String serviceRegion = "YourServiceRegion";
 
     // Speech recognition from microphone.
     public static void recognitionContentContinuous() throws InterruptedException, ExecutionException, IOException 
     {
-        // Creates an instance of a speech config with specified subscription key and service region. Replace with your own subscription key
-        // and service region (e.g., "westus").
-        SpeechConfig speechConfig = SpeechConfig.fromSubscription("YourSubscriptionKey", "YourServiceRegion");
+        // Creates an instance of a speech config with specified subscription key and service region.
+        SpeechConfig speechConfig = SpeechConfig.fromSubscription(serviceSubscriptionKey, serviceRegion);
 
         String language = "en-US";
         
