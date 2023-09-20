@@ -15,8 +15,8 @@ See [this article](https://docs.microsoft.com/azure/cognitive-services/speech-se
   * `YourSubscriptionKey`: replace with your subscription key.
   * `YourServiceRegion`: replace with the [region](https://aka.ms/csspeech/region) your subscription is associated with. For example, `westeurope` or `eastasia`.
   * Your language for speech recognition, if you want to change the default `en-us` (American English).
-  * `YourAudioFile.wav`: An audio file with speech to be recognized. The format is 16khz sample rate, mono, 16-bit per sample PCM. See for example a file named `Lauren_audio.wav` located in several folders in this repository. Make sure the above language settings matches the language spoken in the WAV file. Note: This sample assumes there is a 44 bit wav header on the file and skips those bytes in the stream.
-  * `YourTopicFile.wav`: A text file to be recognized. See for example a file named `Lauren_topic.txt` located in several folders in this repository.
+  * `audioFile`: An audio file with speech to be recognized. The format is 16khz sample rate, mono, 16-bit per sample PCM. See for example a file named `Lauren_audio.wav` located in this repository. Make sure the above language settings matches the language spoken in the WAV file. Note: This sample assumes there is a 44 bit wav header on the file and skips those bytes in the stream.
+  * `topicFile`: A text file. See for example a file named `Lauren_topic.txt` located in this repository.
 
 * Run `npm install` to install any required dependency on your computer.
 

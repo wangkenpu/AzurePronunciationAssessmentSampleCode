@@ -6,11 +6,11 @@ var fs = require("fs");
 function main () {
     const subscriptionKey = "YourSubscriptionKey";
     const serviceRegion = "YourServiceRegion";
-    const filename = "../resources/Lauren_audio.wav";
+    const audioFile = "../resources/Lauren_audio.wav";
     const topicFile = "../resources/Lauren_topic.txt";
 
     var topic = fs.readFileSync(topicFile, "utf8");
-    var audioConfig = sdk.AudioConfig.fromWavFileInput(fs.readFileSync(filename));
+    var audioConfig = sdk.AudioConfig.fromWavFileInput(fs.readFileSync(audioFile));
     var speechConfig = sdk.SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
 
     // setting the recognition language to English.
@@ -54,12 +54,15 @@ function main () {
 
     reco.recognized = function (s, e) {
         jo = JSON.parse(e.result.properties.getProperty(sdk.PropertyId.SpeechServiceResponse_JsonResult));
+        if (jo.DisplayText != ".") {
+            console.log(`Recognizing: ${jo.DisplayText}`);
+            recognizedText += jo.DisplayText;
+        }
         results.push(jo);
-        recognizedText += e.result.text;
     }
 
     function onRecognizedResult() {
-        console.log(`Recognized text: ${recognizedText.trimEnd(".")}`);
+        console.log(`Recognized text: ${recognizedText}`);
         var contentAssessmentResult = results[results.length-1]["NBest"][0]["ContentAssessment"];
         console.log("Content assessment result: ", contentAssessmentResult);
     }
