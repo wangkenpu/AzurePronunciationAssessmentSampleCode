@@ -200,7 +200,7 @@ namespace Samples
                 done = true;
             };
 
-            connection.MessageReceived += (o, e) =>
+            connection.MessageReceived += (s, e) =>
             {
                 if (e.Message.IsTextMessage())
                 {
