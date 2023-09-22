@@ -2,12 +2,10 @@
 using System.IO;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using System.Collections.Generic;
 
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using Microsoft.CognitiveServices.Speech.PronunciationAssessment;
-
 
 namespace Samples
 {
@@ -189,8 +187,8 @@ namespace Samples
             };
             connection.SetMessageProperty("speech.context", "phraseOutput", JsonConvert.SerializeObject(phraseOutputConfig));
 
-            var jsonResults = new List<dynamic>();
             var done = false;
+            var fullRecognizedText = "";
 
             speechRecognizer.SessionStopped += (s, e) => {
                 Console.WriteLine("ClOSING on {0}", e);
@@ -202,11 +200,28 @@ namespace Samples
                 done = true;
             };
 
-            speechRecognizer.Recognized += (s, e) =>
+            connection.MessageReceived += (s, e) =>
             {
-                var pronunciationResultJson = e.Result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
-                dynamic resultJson = JsonConvert.DeserializeObject(pronunciationResultJson);
-                jsonResults.Add(resultJson);
+                if (e.Message.IsTextMessage())
+                {
+                    var messageText = e.Message.GetTextMessage();
+                    var json = Newtonsoft.Json.Linq.JObject.Parse(messageText);
+                    if (json.ContainsKey("NBest"))
+                    {
+                        if (json["NBest"][0]["Display"].ToString().Trim().Length > 1)
+                        {
+                            var recognizedText = json["DisplayText"];
+                            fullRecognizedText += $" {recognizedText}";
+                            Console.WriteLine($"Pronuciation Assessment Results for: {recognizedText}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Content Assessment Results for: {fullRecognizedText}");
+                        }
+                        string jsonText = JsonConvert.SerializeObject(json, Newtonsoft.Json.Formatting.Indented, new JsonSerializerSettings());
+                        Console.WriteLine(jsonText);
+                    }
+                }
             };
 
             // Starts continuous recognition.
@@ -220,9 +235,6 @@ namespace Samples
 
             // Waits for completion.
             await speechRecognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
-
-            Console.WriteLine("PRONUNCIATION CONTENT ASSESSMENT RESULTS:");
-            Console.WriteLine(jsonResults[jsonResults.Count - 1]["NBest"][0]["ContentAssessment"]);
         }
     }
 }
