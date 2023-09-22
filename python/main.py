@@ -66,7 +66,8 @@ def get_assessment_results_with_json_config():
     if result.reason == speechsdk.ResultReason.RecognizedSpeech:
         pronunciation_result_json = json.loads(
             result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult))
-        print(pronunciation_result_json)
+        print("Pronunciation results:")
+        print(json.dumps(pronunciation_result_json, indent=4))
     elif result.reason == speechsdk.ResultReason.NoMatch:
         print("No speech could be recognized")
     elif result.reason == speechsdk.ResultReason.Canceled:
@@ -132,7 +133,6 @@ def get_content_results():
     connection.open(for_continuous_recognition=True)
 
     done = False
-    json_results = []
     recognized_text = ""
 
     def stop_cb(evt):
@@ -142,13 +142,17 @@ def get_content_results():
         done = True
 
     def recognized(evt):
-        nonlocal json_results, recognized_text
+        nonlocal recognized_text
         if (evt.result.reason == speechsdk.ResultReason.RecognizedSpeech or
                 evt.result.reason == speechsdk.ResultReason.NoMatch):
-            json_result = evt.result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult)
-            json_results.append(json.loads(json_result))
-            print(f"Recognizing: {evt.result.text}")
-            recognized_text += " " + evt.result.text
+            json_result = json.loads(evt.result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult))
+            if len(json_result["DisplayText"].strip()) > 1:
+                print(f"Pronunciation Assessment for: {evt.result.text}")
+                print(json.dumps(json_result, indent=4))
+                recognized_text += " " + evt.result.text
+            else:
+                print(f"Content Assessment for: {recognized_text}")
+                print(json.dumps(json_result, indent=4))
 
     # Connect callbacks to the events fired by the speech recognizer
     speech_recognizer.recognized.connect(recognized)
@@ -167,11 +171,6 @@ def get_content_results():
 
     # close the connection
     connection.close()
-
-    # Content assessment result is in the last json result
-    content_assessment_result = json_results[-1]["NBest"][0]["ContentAssessment"]
-    print(f"Recognized text: {recognized_text.rstrip('.').strip()}")
-    print(f"Content assessment result: {content_assessment_result}")
 
 
 def get_continuous_results():
