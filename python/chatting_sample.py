@@ -19,6 +19,10 @@ except ImportError:
 # Set up the subscription info for the Speech Service:
 # Replace with your own subscription key and service region (e.g., "westus").
 speech_key, service_region = "YourSubscriptionKey", "YourServiceRegion"
+your_resource_name = "YourResourceName"
+your_deployment_id = "YourDeploymentId"
+api_version = "YourApiVersion"
+your_api_key = "YourApiKey"
 
 
 def read_wave_header(file_path):
@@ -90,11 +94,6 @@ def chatting_from_file():
         return text
 
     def call_gpt(send_text):
-        your_resource_name = "YourResourceName"
-        your_deployment_id = "YourDeploymentId"
-        api_version = "YourApiVersion"
-        your_api_key = "YourApiKey"
-
         url = (
             f"https://{your_resource_name}.openai.azure.com/openai/deployments/{your_deployment_id}/"
             f"chat/completions?api-version={api_version}"
@@ -128,6 +127,7 @@ def chatting_from_file():
         speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=file_config)
 
         result = speech_synthesizer.speak_ssml_async(text).get()
+        print(f"Save synthesized waveform to {output_filename}")
         # Check result
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
             pass
@@ -196,9 +196,7 @@ def chatting_from_file():
             nb = jo["NBest"][0]
             display_text += nb["Display"]
             json_words += nb["Words"]
-            if "ProsodyScore" in nb["PronunciationAssessment"]:
-                prosody_score = nb["PronunciationAssessment"]["ProsodyScore"]
-                prosody_scores.append(prosody_score)
+            prosody_scores.append(pronunciation_result.prosody_score)
 
             for word in pronunciation_result.words:
                 if word.error_type == "Mispronunciation":

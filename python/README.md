@@ -40,14 +40,14 @@ This sample demonstrates various forms of pronunciation assessment using the Spe
 * [Download the sample code to your development PC.](/README.md#get-the-samples)
 * To tailor the sample to your configuration, use search and replace across the whole sample directory to update the following strings:
 
-  * `YourResourceName`: replace with your Azure resource name.
-  * `YourDeploymentId`: replace with your Azure OpenAi deployment name.
-  * `YourApiVersion`: replace with the [api version](https://learn.microsoft.com/en-US/azure/ai-services/openai/reference).
-  * `YourApiKey`: replace with your api key.
   * `YourSubscriptionKey`: replace with your subscription key.
   * `YourServiceRegion`: replace with the [region](https://aka.ms/csspeech/region) your subscription is associated with.
     For example, `westus` or `westeurope`.
   * `ScenarioId`: scenario ID will be assigned by product team ("" is the default value for the general model)
+  * `YourResourceName`: replace with your Azure resource name.
+  * `YourDeploymentId`: replace with your Azure OpenAi deployment name.
+  * `YourApiVersion`: replace with the [api version](https://learn.microsoft.com/en-US/azure/ai-services/openai/reference).
+  * `YourApiKey`: replace with your api key.
   * Some samples require audio files to be present. Put appropriate audio files somewhere on your file system and adapt the paths in the Python source files.
 
 ## Run the samples
