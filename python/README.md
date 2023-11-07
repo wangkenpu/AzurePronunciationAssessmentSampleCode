@@ -33,7 +33,7 @@ This sample demonstrates various forms of pronunciation assessment using the Spe
 * Install the Speech SDK Python package in your Python interpreter, typically by executing the command
 
   ```sh
-  pip install azure-cognitiveservices-speech
+  pip install azure-cognitiveservices-speech requests
   ```
 
   in a terminal.
@@ -45,9 +45,9 @@ This sample demonstrates various forms of pronunciation assessment using the Spe
     For example, `westus` or `westeurope`.
   * `ScenarioId`: scenario ID will be assigned by product team ("" is the default value for the general model)
   * `YourResourceName`: replace with your Azure resource name.
-  * `YourDeploymentId`: replace with your Azure OpenAi deployment name.
-  * `YourApiVersion`: replace with the [api version](https://learn.microsoft.com/en-US/azure/ai-services/openai/reference).
-  * `YourApiKey`: replace with your api key.
+  * `YourDeploymentId`: replace with your Azure OpenAI deployment name.
+  * `YourApiVersion`: replace with the [API version](https://learn.microsoft.com/en-US/azure/ai-services/openai/reference).
+  * `YourApiKey`: replace with your API key.
   * Some samples require audio files to be present. Put appropriate audio files somewhere on your file system and adapt the paths in the Python source files.
 
 ## Run the samples

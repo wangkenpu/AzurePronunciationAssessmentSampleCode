@@ -17,8 +17,9 @@ except ImportError:
 
 
 # Set up the subscription info for the Speech Service:
-# Replace with your own subscription key and service region (e.g., "westus").
+# Replace with your own subscription key and service region.
 speech_key, service_region = "YourSubscriptionKey", "YourServiceRegion"
+# Set up the parameters for Azure OpenAI Services
 your_resource_name = "YourResourceName"
 your_deployment_id = "YourDeploymentId"
 api_version = "YourApiVersion"
@@ -59,7 +60,7 @@ def chatting_from_file():
         with continuous mode.
         See more information at https://aka.ms/csspeech/pa"""
 
-    topic = "Talk about your day today"
+    topic = "working dogs"
     input_files = ["../resources/chat_input_1.wav", "../resources/chat_input_2.wav"]
 
     def stt(filename):
@@ -374,7 +375,7 @@ def chatting_from_file():
             for message_key in message_dict:
                 if message_dict[message_key] != []:
                     is_or_are = "is" if len(message_dict[message_key]) == 1 else "are"
-                    messages += f"{' and '.join(message_dict[message_key])} {is_or_are} {message_key}. "
+                    messages += f"{','.join(message_dict[message_key])} {is_or_are} {message_key}. "
 
             tts((
                 '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
