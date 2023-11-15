@@ -33,7 +33,7 @@ This sample demonstrates various forms of pronunciation assessment using the Spe
 * Install the Speech SDK Python package in your Python interpreter, typically by executing the command
 
   ```sh
-  pip install azure-cognitiveservices-speech requests
+  pip install azure-cognitiveservices-speech requests numpy librosa soundfile librosa
   ```
 
   in a terminal.

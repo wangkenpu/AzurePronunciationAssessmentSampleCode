@@ -5,6 +5,10 @@ import time
 import requests
 import wave
 import threading
+import os
+import numpy as np
+import soundfile as sf
+import librosa
 
 try:
     import azure.cognitiveservices.speech as speechsdk
@@ -25,6 +29,12 @@ your_deployment_id = "YourDeploymentId"
 api_version = "YourApiVersion"
 your_api_key = "YourApiKey"
 
+merged_audio_path = "output/merged_audio.wav"
+sample_width = 2
+sample_rate = 16000
+channels = 1
+reduced_unit = 10000000
+
 
 def read_wave_header(file_path):
     with wave.open(file_path, 'rb') as audio_file:
@@ -35,6 +45,7 @@ def read_wave_header(file_path):
 
 
 def push_stream_writer(stream, filenames):
+    byte_data = b""
     # The number of bytes to push per buffer
     n_bytes = 3200
     try:
@@ -44,15 +55,36 @@ def push_stream_writer(stream, filenames):
             try:
                 while True:
                     frames = wav_fh.readframes(n_bytes // 2)
-                    # print('read {} bytes'.format(len(frames)))
                     if not frames:
                         break
                     stream.write(frames)
+                    byte_data += frames
                     time.sleep(.1)
             finally:
                 wav_fh.close()
+        with wave.open(merged_audio_path, 'wb') as wave_file:
+            wave_file.setnchannels(channels)
+            wave_file.setsampwidth(sample_width)
+            wave_file.setframerate(sample_rate)
+            wave_file.writeframes(byte_data)
     finally:
         stream.close()
+
+
+def merge_wav(audio_list, output_path):
+    combined_audio = np.empty((0,))
+    for audio in audio_list:
+        y, _ = librosa.core.load(audio, sr=sample_rate)
+        combined_audio = np.concatenate((combined_audio, y))
+        os.remove(audio)
+    sf.write(output_path, combined_audio, sample_rate)
+
+
+def get_mispronunciation_clip(offset, duration, save_path):
+    y, sr = librosa.load(merged_audio_path, sr=sample_rate)
+    start_sample = librosa.core.time_to_samples(offset / reduced_unit, sr=sr)
+    end_sample = librosa.core.time_to_samples(offset / reduced_unit + duration / reduced_unit, sr=sr)
+    sf.write(save_path, y[start_sample:end_sample], sample_rate)
 
 
 def chatting_from_file():
@@ -60,8 +92,9 @@ def chatting_from_file():
         with continuous mode.
         See more information at https://aka.ms/csspeech/pa"""
 
-    topic = "working dogs"
+    topic = "describe working dogs"
     input_files = ["../resources/chat_input_1.wav", "../resources/chat_input_2.wav"]
+    reference_text = ""
 
     def stt(filename):
         result_text = []
@@ -89,8 +122,10 @@ def chatting_from_file():
         while not done:
             time.sleep(.5)
 
+        nonlocal reference_text
         speech_recognizer.stop_continuous_recognition()
-        text = "".join(result_text)
+        text = " ".join(result_text)
+        reference_text += text + " "
         print("YOU: ", text)
         return text
 
@@ -118,16 +153,19 @@ def chatting_from_file():
             requests.post(url=url, headers=headers, data=json.dumps(data)).content
         )["choices"][0]["message"]["content"]
         print("GPT: ", text)
-        return ('<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
-                f'<voice name="en-US-JennyNeural">{text}</voice>'
-                '</speak>')
+        return text
 
     def tts(text, output_filename):
         file_config = speechsdk.audio.AudioOutputConfig(filename=output_filename)
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
         speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=file_config)
 
-        result = speech_synthesizer.speak_ssml_async(text).get()
+        ssml_text = (
+            '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
+            f'<voice name="en-US-JennyNeural">{text}</voice>'
+            '</speak>'
+        )
+        result = speech_synthesizer.speak_ssml_async(ssml_text).get()
         print(f"Save synthesized waveform to {output_filename}")
         # Check result
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
@@ -153,12 +191,16 @@ def chatting_from_file():
 
         # Create pronunciation assessment config, set grading system,
         # granularity and if enable miscue based on your requirement.
-        pronunciation_config = speechsdk.PronunciationAssessmentConfig(
-            grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredMark,
-            granularity=speechsdk.PronunciationAssessmentGranularity.Phoneme,
-            enable_miscue=False)
+        json_string = {
+            "GradingSystem": "HundredMark",
+            "Granularity": "Phoneme",
+            "EnableMiscue": False,
+            "phonemeAlphabet": "IPA",
+        }
+        pronunciation_config = speechsdk.PronunciationAssessmentConfig(json_string=json.dumps(json_string))
         pronunciation_config.enable_prosody_assessment()
         pronunciation_config.enable_content_assessment_with_topic(topic)
+        pronunciation_config.reference_text = reference_text.strip()
 
         # Creates a speech recognizer using a file as audio input.
         language = 'en-US'
@@ -177,7 +219,6 @@ def chatting_from_file():
         durations = []
         results = []
         json_words = []
-        mis_pronunciation_words = []
         display_text = ""
 
         def stop_cb(evt):
@@ -187,8 +228,7 @@ def chatting_from_file():
 
         def recognized(evt):
             pronunciation_result = speechsdk.PronunciationAssessmentResult(evt.result)
-            nonlocal recognized_words, prosody_scores, fluency_scores, durations, results, json_words
-            nonlocal display_text, mis_pronunciation_words
+            nonlocal recognized_words, prosody_scores, fluency_scores, durations, results, json_words, display_text
             results.append(pronunciation_result)
             recognized_words += pronunciation_result.words
             fluency_scores.append(pronunciation_result.fluency_score)
@@ -198,11 +238,6 @@ def chatting_from_file():
             display_text += nb["Display"]
             json_words += nb["Words"]
             prosody_scores.append(pronunciation_result.prosody_score)
-
-            for word in pronunciation_result.words:
-                if word.error_type == "Mispronunciation":
-                    mis_pronunciation_words.append(word)
-
             durations.append(sum([int(w["Duration"]) for w in nb["Words"]]))
 
         # Connect callbacks to the events fired by the speech recognizer
@@ -263,7 +298,11 @@ def chatting_from_file():
                 "topic score": content_result.topic_score
             },
             set_punctuation(json_words, display_text),
-            mis_pronunciation_words
+            [
+                word for word in json_words
+                if word["PronunciationAssessment"]["ErrorType"] == "Mispronunciation"
+                or word["PronunciationAssessment"]["AccuracyScore"] < 60
+            ]
         )
 
     def set_punctuation(json_words, display_text):
@@ -340,20 +379,35 @@ def chatting_from_file():
 
             set_error_dict(json_words)
 
-            origin_content = ""
+            report_audio_list = []
+            accuracy_report_audio_list = []
+            report_path = "output/chat_report_output.wav"
             if len(mis_pronunciation_words) != 0:
-                origin_content = "Accuracy report:"
-                for mis_word in mis_pronunciation_words:
-                    phone = "".join([syllable.syllable for syllable in mis_word.syllables])
-                    origin_content += f" word {mis_word.word}"
-                    origin_content += f" correct pronunciation is {mis_word.word},"
-                    origin_content += (
-                        f' your pronunciation is <phoneme alphabet="ipa" ph="{phone}">'
-                        f'{mis_word.word}'
-                        '</phoneme>. '
+                accuracy_report_path = "output/accuracy_report_output.wav"
+                for idx, mis_word in enumerate(mis_pronunciation_words):
+                    origin_content = ""
+                    report_clip_path = f"output/accuracy_report_clip_{idx+1}.wav"
+                    mis_word_clip_path = f"output/mis_word_clip_{idx+1}.wav"
+                    if idx == 0:
+                        origin_content += "Accuracy report:"
+                    origin_content += f' word {mis_word["Word"]}'
+                    origin_content += f' correct pronunciation is {mis_word["Word"]}, your pronunciation is'
+
+                    tts(origin_content, report_clip_path)
+                    get_mispronunciation_clip(
+                        mis_word["Offset"],
+                        mis_word["Duration"],
+                        mis_word_clip_path
                     )
+                    accuracy_report_audio_list.append(report_clip_path)
+                    accuracy_report_audio_list.append(mis_word_clip_path)
+                merge_wav(accuracy_report_audio_list, accuracy_report_path)
+                report_audio_list.append(accuracy_report_path)
+                os.remove(merged_audio_path)
 
             if scores_dict["fluency score"] < 60 or scores_dict["prosody score"] < 60:
+                origin_content = ""
+                fluency_prosody_report_path = "output/fluency_prosody_report_output.wav"
                 if scores_dict["fluency score"] < 60:
                     origin_content += "Fluency "
                 if scores_dict["prosody score"] < 60:
@@ -361,11 +415,10 @@ def chatting_from_file():
                 origin_content += "report: "
                 origin_content += get_error_message(["Missing break", "Unexpected break", "Monotone"])
 
-            tts(f'<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">\
-                    <voice name="en-US-JennyNeural">\
-                        {origin_content}\
-                    </voice>\
-                </speak>', "chat_report_output.wav")
+                tts(origin_content, fluency_prosody_report_path)
+                report_audio_list.append(fluency_prosody_report_path)
+
+            merge_wav(report_audio_list, report_path)
 
         def get_score_comment(scores_dict):
             for score_key in scores_dict:
@@ -375,17 +428,15 @@ def chatting_from_file():
             for message_key in message_dict:
                 if message_dict[message_key] != []:
                     is_or_are = "is" if len(message_dict[message_key]) == 1 else "are"
-                    messages += f"{','.join(message_dict[message_key])} {is_or_are} {message_key}. "
+                    messages += f"{', '.join(message_dict[message_key])} {is_or_are} {message_key}. "
 
-            tts((
-                '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">'
-                f'<voice name="en-US-JennyNeural">{messages}</voice>'
-                '</speak>'
-            ), "chat_score_comment_output.wav")
+            tts(messages, "output/chat_score_comment_output.wav")
 
         get_score_comment(scores_dict)
         get_report(json_words, mis_pronunciation_words)
 
+    if not os.path.exists("output"):
+        os.makedirs("output")
     for idx, file in enumerate(input_files):
-        tts(call_gpt(stt(file)), f"gpt_output_{idx+1}.wav")
+        tts(call_gpt(stt(file)), f"output/gpt_output_{idx+1}.wav")
     pronunciation_assessment()
