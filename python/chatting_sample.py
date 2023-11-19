@@ -29,7 +29,6 @@ your_deployment_id = "YourDeploymentId"
 api_version = "YourApiVersion"
 your_api_key = "YourApiKey"
 
-merged_audio_path = "output/merged_audio.wav"
 sample_width = 2
 sample_rate = 16000
 channels = 1
@@ -44,7 +43,7 @@ def read_wave_header(file_path):
         return framerate, bits_per_sample, num_channels
 
 
-def push_stream_writer(stream, filenames):
+def push_stream_writer(stream, filenames, merged_audio_path):
     byte_data = b""
     # The number of bytes to push per buffer
     n_bytes = 3200
@@ -71,16 +70,18 @@ def push_stream_writer(stream, filenames):
         stream.close()
 
 
-def merge_wav(audio_list, output_path):
+def merge_wav(audio_list, output_path, tag=None):
     combined_audio = np.empty((0,))
     for audio in audio_list:
         y, _ = librosa.core.load(audio, sr=sample_rate)
         combined_audio = np.concatenate((combined_audio, y))
         os.remove(audio)
     sf.write(output_path, combined_audio, sample_rate)
+    if tag:
+        print(f"Save {tag} to {output_path}")
 
 
-def get_mispronunciation_clip(offset, duration, save_path):
+def get_mispronunciation_clip(offset, duration, save_path, merged_audio_path):
     y, sr = librosa.load(merged_audio_path, sr=sample_rate)
     start_sample = librosa.core.time_to_samples(offset / reduced_unit, sr=sr)
     end_sample = librosa.core.time_to_samples(offset / reduced_unit + duration / reduced_unit, sr=sr)
@@ -155,8 +156,8 @@ def chatting_from_file():
         print("GPT: ", text)
         return text
 
-    def tts(text, output_filename):
-        file_config = speechsdk.audio.AudioOutputConfig(filename=output_filename)
+    def tts(text, output_path, tag=None):
+        file_config = speechsdk.audio.AudioOutputConfig(filename=output_path)
         speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
         speech_synthesizer = speechsdk.SpeechSynthesizer(speech_config=speech_config, audio_config=file_config)
 
@@ -166,7 +167,8 @@ def chatting_from_file():
             '</speak>'
         )
         result = speech_synthesizer.speak_ssml_async(ssml_text).get()
-        print(f"Save synthesized waveform to {output_filename}")
+        if tag:
+            print(f"Save {tag} to {output_path}")
         # Check result
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
             pass
@@ -247,7 +249,8 @@ def chatting_from_file():
         speech_recognizer.canceled.connect(stop_cb)
 
         # Start push stream writer thread
-        push_stream_writer_thread = threading.Thread(target=push_stream_writer, args=[stream, input_files])
+        merged_audio_path = "output/merged_audio.wav"
+        push_stream_writer_thread = threading.Thread(target=push_stream_writer, args=[stream, input_files, merged_audio_path])
         push_stream_writer_thread.start()
         # Start continuous pronunciation assessment
         speech_recognizer.start_continuous_recognition()
@@ -302,7 +305,8 @@ def chatting_from_file():
                 word for word in json_words
                 if word["PronunciationAssessment"]["ErrorType"] == "Mispronunciation"
                 or word["PronunciationAssessment"]["AccuracyScore"] < 60
-            ]
+            ],
+            merged_audio_path
         )
 
     def set_punctuation(json_words, display_text):
@@ -311,7 +315,7 @@ def chatting_from_file():
                 json_words[idx]["is_punctuation"] = True
         return json_words
 
-    def comment_result(scores_dict, json_words, mis_pronunciation_words):
+    def comment_result(scores_dict, json_words, mis_pronunciation_words, merged_audio_path):
         message_dict = {
             "Excellent": [],
             "Good": [],
@@ -375,15 +379,15 @@ def chatting_from_file():
 
             return message
 
-        def get_report(json_words, mis_pronunciation_words):
+        def get_report(json_words, mis_pronunciation_words, merged_audio_path):
 
             set_error_dict(json_words)
 
             report_audio_list = []
             accuracy_report_audio_list = []
-            report_path = "output/chat_report_output.wav"
+            report_path = "output/chat_report.wav"
             if len(mis_pronunciation_words) != 0:
-                accuracy_report_path = "output/accuracy_report_output.wav"
+                accuracy_report_path = "output/accuracy_report.wav"
                 for idx, mis_word in enumerate(mis_pronunciation_words):
                     origin_content = ""
                     report_clip_path = f"output/accuracy_report_clip_{idx+1}.wav"
@@ -397,7 +401,8 @@ def chatting_from_file():
                     get_mispronunciation_clip(
                         mis_word["Offset"],
                         mis_word["Duration"],
-                        mis_word_clip_path
+                        mis_word_clip_path,
+                        merged_audio_path
                     )
                     accuracy_report_audio_list.append(report_clip_path)
                     accuracy_report_audio_list.append(mis_word_clip_path)
@@ -407,7 +412,7 @@ def chatting_from_file():
 
             if scores_dict["fluency score"] < 60 or scores_dict["prosody score"] < 60:
                 origin_content = ""
-                fluency_prosody_report_path = "output/fluency_prosody_report_output.wav"
+                fluency_prosody_report_path = "output/fluency_prosody_report.wav"
                 if scores_dict["fluency score"] < 60:
                     origin_content += "Fluency "
                 if scores_dict["prosody score"] < 60:
@@ -418,7 +423,7 @@ def chatting_from_file():
                 tts(origin_content, fluency_prosody_report_path)
                 report_audio_list.append(fluency_prosody_report_path)
 
-            merge_wav(report_audio_list, report_path)
+            merge_wav(report_audio_list, report_path, "report")
 
         def get_score_comment(scores_dict):
             for score_key in scores_dict:
@@ -430,13 +435,14 @@ def chatting_from_file():
                     is_or_are = "is" if len(message_dict[message_key]) == 1 else "are"
                     messages += f"{', '.join(message_dict[message_key])} {is_or_are} {message_key}. "
 
-            tts(messages, "output/chat_score_comment_output.wav")
+            tts(messages, "output/chat_score_comment.wav", "score comment")
 
         get_score_comment(scores_dict)
-        get_report(json_words, mis_pronunciation_words)
+        get_report(json_words, mis_pronunciation_words, merged_audio_path)
 
     if not os.path.exists("output"):
         os.makedirs("output")
     for idx, file in enumerate(input_files):
-        tts(call_gpt(stt(file)), f"output/gpt_output_{idx+1}.wav")
+        tts(call_gpt(stt(file)), f"output/gpt_output_{idx+1}.wav", "GPT output")
+    print("Generate the final report ......")
     pronunciation_assessment()
