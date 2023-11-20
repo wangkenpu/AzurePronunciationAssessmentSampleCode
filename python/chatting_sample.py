@@ -8,7 +8,6 @@ import threading
 import os
 import numpy as np
 import soundfile as sf
-import librosa
 
 try:
     import azure.cognitiveservices.speech as speechsdk
@@ -73,7 +72,7 @@ def push_stream_writer(stream, filenames, merged_audio_path):
 def merge_wav(audio_list, output_path, tag=None):
     combined_audio = np.empty((0,))
     for audio in audio_list:
-        y, _ = librosa.core.load(audio, sr=sample_rate)
+        y, _ = sf.read(audio, dtype="float32")
         combined_audio = np.concatenate((combined_audio, y))
         os.remove(audio)
     sf.write(output_path, combined_audio, sample_rate)
@@ -82,10 +81,18 @@ def merge_wav(audio_list, output_path, tag=None):
 
 
 def get_mispronunciation_clip(offset, duration, save_path, merged_audio_path):
-    y, sr = librosa.load(merged_audio_path, sr=sample_rate)
-    start_sample = librosa.core.time_to_samples(offset / reduced_unit, sr=sr)
-    end_sample = librosa.core.time_to_samples(offset / reduced_unit + duration / reduced_unit, sr=sr)
-    sf.write(save_path, y[start_sample:end_sample], sample_rate)
+    y, _ = sf.read(
+        merged_audio_path,
+        start=int((offset) / reduced_unit * sample_rate),
+        stop=int((offset + duration) / reduced_unit * sample_rate),
+        dtype=np.float32
+    )
+    sf.write(save_path, y, sample_rate)
+
+
+def strip_end_silence(file_path):
+    y, _ = sf.read(file_path, start=0, stop=-int(sample_rate*0.8), dtype=np.float32)
+    sf.write(file_path, y, sample_rate)
 
 
 def chatting_from_file():
@@ -167,11 +174,11 @@ def chatting_from_file():
             '</speak>'
         )
         result = speech_synthesizer.speak_ssml_async(ssml_text).get()
-        if tag:
-            print(f"Save {tag} to {output_path}")
         # Check result
         if result.reason == speechsdk.ResultReason.SynthesizingAudioCompleted:
-            pass
+            strip_end_silence(output_path)
+            if tag:
+                print(f"Save {tag} to {output_path}")
         elif result.reason == speechsdk.ResultReason.Canceled:
             cancellation_details = result.cancellation_details
             print("Speech synthesis canceled: {}".format(cancellation_details.reason))
