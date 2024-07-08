@@ -19,8 +19,8 @@ namespace Samples
     class Program
     {
         // Replace with your own subscription key and service region (e.g., "westus").
-        private const string ServiceSubscriptionKey = "";
-        private const string ServiceRegion = "";
+        private const string ServiceSubscriptionKey = "YourSubscriptionKey";
+        private const string ServiceRegion = "YourServiceRegion";
 
         private const double ProsodyThreshold = 0.1;
 
