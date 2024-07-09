@@ -44,7 +44,6 @@ namespace Samples
                 Console.WriteLine("1. Pronunciation Assessment with Json configure.");
                 Console.WriteLine("2. Pronunciation Assessment with Content Score.");
                 Console.WriteLine("3. Pronunciation Assessment with Continuous.");
-                Console.WriteLine("4. Pronunciation Assessment with Microphone.");
                 Console.WriteLine("");
                 Console.Write(mainPrompt);
 
@@ -65,10 +64,6 @@ namespace Samples
                     case ConsoleKey.D3:
                     case ConsoleKey.NumPad3:
                         PronunciationAssessmentContinuousWithFile().Wait();
-                        break;
-                    case ConsoleKey.D4:
-                    case ConsoleKey.NumPad4:
-                        PronunciationAssessmentWithMicrophoneAsync().Wait();
                         break;
                     case ConsoleKey.D0:
                     case ConsoleKey.NumPad0:
@@ -287,10 +282,12 @@ namespace Samples
                     var recognizedWords = new List<string>();
                     var pronWords = new List<Word>();
                     var finalWords = new List<Word>();
-                    var fluency_scores = new List<double>();
                     var prosody_scores = new List<double>();
                     var durations = new List<int>();
                     var done = false;
+
+                    var startOffset = 0L;
+                    var endOffset = 0L;
 
                     recognizer.SessionStopped += (s, e) => {
                         Console.WriteLine("ClOSING on {0}", e);
@@ -340,12 +337,25 @@ namespace Samples
                             pronWords.Add(newWord);
                         }
 
-                        fluency_scores.Add(pronResult.FluencyScore);
                         prosody_scores.Add(pronResult.ProsodyScore);
 
                         foreach (var result in e.Result.Best())
                         {
-                            durations.Add(result.Words.Sum(item => item.Duration));
+                            if (startOffset == 0)
+                            {
+                                startOffset = result.Words.First().Offset;
+                            }
+
+                            endOffset = result.Words.Last().Offset + 100000;
+
+                            for (int i = 0; i < pronResult.Words.Count() && i < result.Words.Count(); i++)
+                            {
+                                if (pronResult.Words.ToList()[i].ErrorType == "None")
+                                {
+                                    durations.Add(result.Words.ToList()[i].Duration + 100000);
+                                }
+                            }
+                            //durations.Add(result.Words.Sum(item => item.Duration));
                             recognizedWords.AddRange(result.Words.Select(item => item.Word).ToList());
 
                         }
@@ -437,7 +447,12 @@ namespace Samples
                     var prosodyScore = prosody_scores.Average();
 
                     // Recalculate fluency score
-                    var fluencyScore = fluency_scores.Zip(durations, (x, y) => x * y).Sum() / durations.Sum();
+                    var fluencyScore = 0.0d;
+                    if (startOffset > 0)
+                    {
+                        fluencyScore = durations.Sum() / (endOffset - startOffset) * 100;
+                    }
+
 
                     // Calculate whole completeness score
                     var completenessScore = (double)pronWords.Count(item => item.ErrorType == "None") / referenceWords.Length * 100;
@@ -457,139 +472,6 @@ namespace Samples
             }
         }
 
-        // Pronunciation assessment with microphone as audio input.
-        // See more information at https://aka.ms/csspeech/pa
-        public static async Task PronunciationAssessmentWithMicrophoneAsync()
-        {
-            // Creates an instance of a speech config with specified subscription key and service region.
-            // Replace with your own subscription key and service region (e.g., "westus").
-            var config = SpeechConfig.FromSubscription(ServiceSubscriptionKey, ServiceRegion);
-
-            // Replace the language with your language in BCP-47 format, e.g., en-US.
-            var language = "en-US";
-
-            // The pronunciation assessment service has a longer default end silence timeout (5 seconds) than normal STT
-            // as the pronunciation assessment is widely used in education scenario where kids have longer break in reading.
-            // You can adjust the end silence timeout based on your real scenario.
-            config.SetProperty(PropertyId.SpeechServiceConnection_EndSilenceTimeoutMs, "3000");
-
-            var referenceText = "";
-            // create pronunciation assessment config, set grading system, granularity and if enable miscue based on your requirement.
-            var pronunciationConfig = new PronunciationAssessmentConfig(referenceText,
-                GradingSystem.HundredMark, Granularity.Phoneme, true);
-
-            pronunciationConfig.EnableProsodyAssessment();
-
-            // Creates a speech recognizer for the specified language, using microphone as audio input.
-            using (var recognizer = new SpeechRecognizer(config, language))
-            {
-                while (true)
-                {
-                    // Receives reference text from console input.
-                    Console.WriteLine("Enter reference text you want to assess, or enter empty text to exit.");
-                    Console.Write("> ");
-                    referenceText = Console.ReadLine();
-                    if (string.IsNullOrEmpty(referenceText))
-                    {
-                        break;
-                    }
-
-                    List<string> referenceTextList = new List<string>(referenceText.Split(' '));
-
-                    pronunciationConfig.ReferenceText = referenceText;
-
-                    // Starts recognizing.
-                    Console.WriteLine($"Read out \"{referenceText}\" for pronunciation assessment ...");
-
-                    pronunciationConfig.ApplyTo(recognizer);
-
-                    // Starts speech recognition, and returns after a single utterance is recognized.
-                    // For long-running multi-utterance recognition, use StartContinuousRecognitionAsync() instead.
-                    var result = await recognizer.RecognizeOnceAsync().ConfigureAwait(false);
-
-                    // Checks result.
-                    if (result.Reason == ResultReason.RecognizedSpeech)
-                    {
-                        Console.WriteLine($"RECOGNIZED: Text={result.Text}");
-                        Console.WriteLine("  PRONUNCIATION ASSESSMENT RESULTS:");
-
-                        var pronunciationResult = PronunciationAssessmentResult.FromResult(result);
-                        Console.WriteLine(
-                            $"    Accuracy score: {pronunciationResult.AccuracyScore}, Prosody Score: {pronunciationResult.ProsodyScore}, Pronunciation score: {pronunciationResult.PronunciationScore}, Completeness score : {pronunciationResult.CompletenessScore}, FluencyScore: {pronunciationResult.FluencyScore}");
-
-                        Console.WriteLine("  Word-level details:");
-                        var responseJson = result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
-
-                        var doc = JObject.Parse(responseJson);
-                        var words = doc["NBest"][0]["Words"];
-
-                        int referencePosition = 0;
-                        List<Word> pronWords = new List<Word>();
-
-                        foreach (JObject item in words)
-                        {
-                            string word_item = item["Word"].ToObject<string>();
-                            JObject pa = (JObject)item["PronunciationAssessment"];
-
-                            string errorType_item = pa["ErrorType"].ToObject<string>();
-                            bool accuracyScore_exist = pa.TryGetValue("AccuracyScore", out JToken accuracyScore_element);
-
-                            double accuracyScore_item = 0.0d;
-
-                            if (accuracyScore_exist)
-                            {
-                                accuracyScore_item = accuracyScore_element.ToObject<double>();
-                            }
-
-                            bool feedback_exist = pa.TryGetValue("Feedback", out JToken feedback_item);
-
-                            JToken prosody_item = null;
-
-                            if (feedback_exist)
-                            {
-                                prosody_item = feedback_item["Prosody"].DeepClone();
-                            }
-
-                            var newWord = new Word(word_item, errorType_item, accuracyScore_item, prosody_item);
-
-                            if ("Insertion" == errorType_item)
-                            {
-                                newWord.HasPunctuation = false;
-                            }
-                            else
-                            {
-                                newWord.HasPunctuation = HasPunctuation(referencePosition, referenceTextList);
-                                referencePosition += 1;
-                            }
-                            pronWords.Add(newWord);
-                        }
-
-                        for (int i = 0; i < pronWords.Count; i++)
-                        {
-                            var word = pronWords[i];
-                            bool word_hasPunctuation = i > 0 && pronWords[i - 1].HasPunctuation;
-                            Console.WriteLine($"    Word: {word.WordText}, Accuracy score: {word.AccuracyScore}, Error type: {getFinalErrorType(word.ErrorType, word.Prosody, word_hasPunctuation, ProsodyThreshold)}.");
-                        }
-                    }
-                    else if (result.Reason == ResultReason.NoMatch)
-                    {
-                        Console.WriteLine($"NOMATCH: Speech could not be recognized.");
-                    }
-                    else if (result.Reason == ResultReason.Canceled)
-                    {
-                        var cancellation = CancellationDetails.FromResult(result);
-                        Console.WriteLine($"CANCELED: Reason={cancellation.Reason}");
-
-                        if (cancellation.Reason == CancellationReason.Error)
-                        {
-                            Console.WriteLine($"CANCELED: ErrorCode={cancellation.ErrorCode}");
-                            Console.WriteLine($"CANCELED: ErrorDetails={cancellation.ErrorDetails}");
-                            Console.WriteLine($"CANCELED: Did you update the subscription info?");
-                        }
-                    }
-                }
-            }
-        }
         public static bool HasPunctuation(int pos, List<string> wordList)
         {
             string word = wordList[pos];
