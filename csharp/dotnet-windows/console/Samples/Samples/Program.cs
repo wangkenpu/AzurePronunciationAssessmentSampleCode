@@ -346,7 +346,7 @@ namespace Samples
                                 startOffset = result.Words.First().Offset;
                             }
 
-                            endOffset = result.Words.Last().Offset + 100000;
+                            endOffset = result.Words.Last().Offset + result.Words.Last().Duration + 100000;
 
                             for (int i = 0; i < pronResult.Words.Count() && i < result.Words.Count(); i++)
                             {
@@ -450,7 +450,7 @@ namespace Samples
                     var fluencyScore = 0.0d;
                     if (startOffset > 0)
                     {
-                        fluencyScore = durations.Sum() / (endOffset - startOffset) * 100;
+                        fluencyScore = durations.Sum() * 1.0 / (endOffset - startOffset) * 100.0;
                     }
 
 
