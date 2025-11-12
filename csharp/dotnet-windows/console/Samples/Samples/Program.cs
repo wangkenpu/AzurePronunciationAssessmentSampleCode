@@ -1,7 +1,14 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using DiffPlex;
+using DiffPlex.DiffBuilder;
+using DiffPlex.DiffBuilder.Model;
 
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
@@ -14,6 +21,8 @@ namespace Samples
         // Replace with your own subscription key and service region (e.g., "westus").
         private const string ServiceSubscriptionKey = "YourSubscriptionKey";
         private const string ServiceRegion = "YourServiceRegion";
+
+        private const double ProsodyThreshold = 0.1;
 
         private static readonly string choose = "Please choose one of the following samples:";
         private static readonly string mainPrompt = "Your choice (or 0 to exit): ";
@@ -34,6 +43,7 @@ namespace Samples
                 Console.WriteLine("");
                 Console.WriteLine("1. Pronunciation Assessment with Json configure.");
                 Console.WriteLine("2. Pronunciation Assessment with Content Score.");
+                Console.WriteLine("3. Pronunciation Assessment with Continuous.");
                 Console.WriteLine("");
                 Console.Write(mainPrompt);
 
@@ -50,6 +60,10 @@ namespace Samples
                     case ConsoleKey.D2:
                     case ConsoleKey.NumPad2:
                         GetContentResult().Wait();
+                        break;
+                    case ConsoleKey.D3:
+                    case ConsoleKey.NumPad3:
+                        PronunciationAssessmentContinuousWithFile().Wait();
                         break;
                     case ConsoleKey.D0:
                     case ConsoleKey.NumPad0:
@@ -235,6 +249,309 @@ namespace Samples
 
             // Waits for completion.
             await speechRecognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
+        }
+
+        // Pronunciation assessment continous from file
+        // See more information at https://aka.ms/csspeech/pa
+        public static async Task PronunciationAssessmentContinuousWithFile()
+        {
+            // Creates an instance of a speech config with specified subscription key and service region.
+            // Replace with your own subscription key and service region (e.g., "westus").
+            var config = SpeechConfig.FromSubscription(ServiceSubscriptionKey, ServiceRegion);
+
+            // Creates a speech recognizer using file as audio input. 
+            string basePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "..", "..", "..");
+            string wavePath = Path.Combine(basePath, "resources", "weather_audio.wav");
+            using (var audioInput = AudioConfig.FromWavFileInput(wavePath))
+            {
+                // Switch to other languages for example Spanish, change language "en-US" to "es-ES". Language name is not case sensitive.
+                var language = "en-US";
+
+                using (var recognizer = new SpeechRecognizer(config, language, audioInput))
+                {
+                    var referenceText = "what's the weather like";
+
+                    bool enableMiscue = true;
+
+                    var pronConfig = new PronunciationAssessmentConfig(referenceText, GradingSystem.HundredMark, Granularity.Phoneme, enableMiscue);
+
+                    pronConfig.EnableProsodyAssessment();
+
+                    pronConfig.ApplyTo(recognizer);
+
+                    var recognizedWords = new List<string>();
+                    var pronWords = new List<Word>();
+                    var finalWords = new List<Word>();
+                    var prosody_scores = new List<double>();
+                    var durations = new List<int>();
+                    var done = false;
+
+                    var startOffset = 0L;
+                    var endOffset = 0L;
+
+                    recognizer.SessionStopped += (s, e) => {
+                        Console.WriteLine("ClOSING on {0}", e);
+                        done = true;
+                    };
+
+                    recognizer.Canceled += (s, e) => {
+                        Console.WriteLine("ClOSING on {0}", e);
+                        done = true;
+                    };
+
+                    recognizer.Recognized += (s, e) => {
+                        Console.WriteLine($"RECOGNIZED: Text={e.Result.Text}");
+                        var pronResult = PronunciationAssessmentResult.FromResult(e.Result);
+                        Console.WriteLine($"    Accuracy score: {pronResult.AccuracyScore}, prosody score:{pronResult.ProsodyScore}, pronunciation score: {pronResult.PronunciationScore}, completeness score: {pronResult.CompletenessScore}, fluency score: {pronResult.FluencyScore}");
+
+                        var responseJson = e.Result.Properties.GetProperty(PropertyId.SpeechServiceResponse_JsonResult);
+
+                        var doc = JObject.Parse(responseJson);
+
+                        var words = doc["NBest"][0]["Words"];
+                        foreach (JObject item in words)
+                        {
+                            string word_item = item["Word"].ToObject<string>();
+                            JObject pa = (JObject)item["PronunciationAssessment"];
+
+                            string errorType_item = pa["ErrorType"].ToObject<string>();
+                            bool accuracyScore_exist = pa.TryGetValue("AccuracyScore", out JToken accuracyScore_element);
+
+                            double accuracyScore_item = 0.0d;
+
+                            if (accuracyScore_exist)
+                            {
+                                accuracyScore_item = accuracyScore_element.ToObject<double>();
+                            }
+
+                            bool feedback_exist = pa.TryGetValue("Feedback", out JToken feedback_item);
+
+                            JToken prosody_item = null;
+
+                            if (feedback_exist)
+                            {
+                                prosody_item = feedback_item["Prosody"].DeepClone();
+                            }
+
+                            var newWord = new Word(word_item, errorType_item, accuracyScore_item, prosody_item);
+                            pronWords.Add(newWord);
+                        }
+
+                        prosody_scores.Add(pronResult.ProsodyScore);
+
+                        foreach (var result in e.Result.Best())
+                        {
+                            if (startOffset == 0)
+                            {
+                                startOffset = result.Words.First().Offset;
+                            }
+
+                            endOffset = result.Words.Last().Offset + result.Words.Last().Duration + 100000;
+
+                            for (int i = 0; i < pronResult.Words.Count() && i < result.Words.Count(); i++)
+                            {
+                                if (pronResult.Words.ToList()[i].ErrorType == "None")
+                                {
+                                    durations.Add(result.Words.ToList()[i].Duration + 100000);
+                                }
+                            }
+                            //durations.Add(result.Words.Sum(item => item.Duration));
+                            recognizedWords.AddRange(result.Words.Select(item => item.Word).ToList());
+
+                        }
+                    };
+
+                    // Starts continuous recognition.
+                    await recognizer.StartContinuousRecognitionAsync().ConfigureAwait(false);
+
+                    while (!done)
+                    {
+                        // Allow the program to run and process results continuously.
+                        await Task.Delay(1000); // Adjust the delay as needed.
+                    }
+
+                    // Waits for completion.
+                    await recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
+
+                    // For continuous pronunciation assessment mode, the service won't return the words with `Insertion` or `Omission`
+                    // even if miscue is enabled.
+                    // We need to compare with the reference text after received all recognized words to get these error words.
+                    string[] referenceWords = referenceText.ToLower().Split(' ');
+                    List<string> referenceWordsList = new List<string>(referenceWords);
+
+                    for (int j = 0; j < referenceWords.Length; j++)
+                    {
+                        referenceWords[j] = Regex.Replace(referenceWords[j], "^[\\p{P}\\s]+|[\\p{P}\\s]+$", "");
+                    }
+
+                    // Diff the reference and recognized string
+                    var differ = new Differ();
+                    var inlineBuilder = new InlineDiffBuilder(differ);
+                    var diffModel = inlineBuilder.BuildDiffModel(string.Join("\n", referenceWords), string.Join("\n", recognizedWords));
+
+                    int recognizedIdx = 0;
+                    int referenceIdx = 0;
+
+                    foreach (var delta in diffModel.Lines)
+                    {
+
+                        if (delta.Type == ChangeType.Unchanged)
+                        {
+                            Word w_same = pronWords[recognizedIdx];
+                            w_same.HasPunctuation = HasPunctuation(referenceIdx, referenceWordsList);
+
+                            finalWords.Add(w_same);
+
+                            recognizedIdx += 1;
+                            referenceIdx += 1;
+                        }
+
+                        if (delta.Type == ChangeType.Deleted || delta.Type == ChangeType.Modified)
+                        {
+                            if (enableMiscue)
+                            {
+                                var word = new Word(delta.Text, "Omission", null);
+                                word.HasPunctuation = HasPunctuation(referenceIdx, referenceWordsList);
+
+                                finalWords.Add(word);
+                            }
+
+                            referenceIdx += 1;
+                        }
+
+                        if (delta.Type == ChangeType.Inserted || delta.Type == ChangeType.Modified)
+                        {
+                            Word w = pronWords[recognizedIdx];
+                            if (enableMiscue)
+                            {
+                                if (w.ErrorType == "None")
+                                {
+                                    w.ErrorType = "Insertion";
+                                    finalWords.Add(w);
+                                }
+                            }
+                            else
+                            {
+                                finalWords.Add(w);
+                            }
+
+                            recognizedIdx += 1;
+                        }
+                    }
+
+                    // We can calculate whole accuracy by averaging
+                    var filteredWords = finalWords.Where(item => item.ErrorType != "Insertion");
+                    var accuracyScore = filteredWords.Sum(item => item.AccuracyScore) / filteredWords.Count();
+
+                    // Recalculate the prosody score by averaging
+                    var prosodyScore = prosody_scores.Average();
+
+                    // Recalculate fluency score
+                    var fluencyScore = 0.0d;
+                    if (startOffset > 0)
+                    {
+                        fluencyScore = durations.Sum() * 1.0 / (endOffset - startOffset) * 100.0;
+                    }
+
+
+                    // Calculate whole completeness score
+                    var completenessScore = (double)pronWords.Count(item => item.ErrorType == "None") / referenceWords.Length * 100;
+                    completenessScore = completenessScore <= 100 ? completenessScore : 100;
+
+                    Console.WriteLine("Paragraph accuracy score: {0}, prosody score: {1} completeness score: {2}, fluency score: {3}", accuracyScore, prosodyScore, completenessScore, fluencyScore);
+
+                    for (int idx = 0; idx < finalWords.Count(); idx++)
+                    {
+                        Word word = finalWords[idx];
+                        bool signal = idx > 0 && finalWords[idx - 1].HasPunctuation;
+                        string errorType = getFinalErrorType(word.ErrorType, word.Prosody, signal, ProsodyThreshold);
+                        Console.WriteLine("{0}: word: {1}\taccuracy score: {2}\terror type: {3}",
+                            idx + 1, word.WordText, word.AccuracyScore, errorType);
+                    }
+                }
+            }
+        }
+
+        public static bool HasPunctuation(int pos, List<string> wordList)
+        {
+            string word = wordList[pos];
+            if (word.Length > 0 && char.IsPunctuation(word[word.Length - 1]))
+            {
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// combine of the error types of word, break and innotation
+        /// </summary>
+        /// <param name="errorType"> word error type</param>
+        /// <param name="prosody"> JsonElement value of prosody </param>
+        /// <param name="hasPunctuation">if the former word has punctuation </param>
+        /// <param name="threshold"> threshold of confidence of MissingBreak/UnexpectedBreak </param>
+        /// <returns>None or combines of error types </returns>
+        public static string getFinalErrorType(string errorType, JToken prosody, bool hasPunctuation, double threshold)
+        {
+            List<string> result = new List<string>();
+            if (errorType != "None")
+            {
+                result.Add(errorType);
+            }
+
+            if (prosody != null)
+            {
+                //JsonElement prosodyValue = prosody.Value;
+                JObject break_prosody = (JObject)prosody["Break"];
+
+                string errorType_break = "";
+                if (!hasPunctuation)
+                {
+                    errorType_break = "UnexpectedBreak";
+                }
+                else
+                {
+                    errorType_break = "MissingBreak";
+                }
+                if (break_prosody.TryGetValue(errorType_break, out JToken break_value))
+                {
+                    double confidence = break_value["Confidence"].ToObject<double>();
+                    if (confidence >= threshold)
+                    {
+                        result.Add(errorType_break);
+                    }
+                }
+
+                var errorType_intonation = (JArray)prosody["Intonation"]["ErrorTypes"];
+                if ((errorType_intonation.Count > 0) && (errorType_intonation[0].ToObject<string>() != "None"))
+                {
+                    result.Add(errorType_intonation[0].ToObject<string>());
+                }
+            }
+
+            return result.Count == 0 ? "None" : string.Join(",", result);
+        }
+    }
+
+    public class Word
+    {
+        public string WordText { get; set; }
+        public string ErrorType { get; set; }
+        public double AccuracyScore { get; set; }
+        public JToken Prosody { get; set; }
+        public bool HasPunctuation { get; set; }
+
+        public Word(string wordText, string errorType, JToken prosody)
+        {
+            WordText = wordText;
+            ErrorType = errorType;
+            AccuracyScore = 0;
+            Prosody = prosody;
+            HasPunctuation = false;
+        }
+
+        public Word(string wordText, string errorType, double accuracyScore, JToken prosody) : this(wordText, errorType, prosody)
+        {
+            AccuracyScore = accuracyScore;
         }
     }
 }
